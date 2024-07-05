@@ -1,0 +1,6 @@
+[
+  {
+    "filePath": "/home/keyhan/MyWorkspace/elpis/elpis-compiler/src/main/java/tra/samples/lab/test.elp",
+    "depsPath": []
+  }
+]
