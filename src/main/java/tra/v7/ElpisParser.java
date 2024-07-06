@@ -17,6 +17,7 @@ public class ElpisParser implements Serializable {
     private ElpisLexer lexer;
     private Symbol[] tokens;
     private Stack<Node> stack;
+    private Hashtable<String, Hashtable<String, Object>> stageStack;
     private Stack<Tuple<Node, String, String[], Node, Action, Boolean>> nodeStack;
     private Hashtable<String, Hashtable<String, Object>> history;
     private void print(Object obj) {
@@ -30,6 +31,7 @@ public class ElpisParser implements Serializable {
         this.lexer = lexer;
         this.stack = new Stack<>();
         this.nodeStack = new Stack<>();
+        this.stageStack = new Hashtable<>();
         this.history = new Hashtable<>();
         HashSet<String> reservedWords = new HashSet<>();
         for (int counter = 0; counter < sym.terminalNames.length; counter++) {
@@ -102,10 +104,9 @@ public class ElpisParser implements Serializable {
         expOp.addRule("$nop", null, new Action() {
             @Override
             public Object act(Hashtable<String, Object> cache, Symbol arg) {
+                print(arg);
                 print(cache);
-                Hashtable<String, Object> newCache = new Hashtable<>();
-                newCache.put("old", cache);
-                return newCache;
+                return cache;
             }
         });
         expOp.addRule("+", expAfOp, new Action() {
@@ -113,8 +114,7 @@ public class ElpisParser implements Serializable {
             public Object act(Hashtable<String, Object> cache, Symbol arg) {
                 print(cache);
                 Hashtable<String, Object> newCache = new Hashtable<>();
-                Hashtable<String, Object> old = ((Hashtable<String, Object>)cache.get("old"));
-                newCache.put("operand2", old.get("operand2"));
+                newCache.put("operand2", cache.get("operand2"));
                 newCache.put("operator", "+");
                 return newCache;
             }
@@ -124,8 +124,7 @@ public class ElpisParser implements Serializable {
             public Object act(Hashtable<String, Object> cache, Symbol arg) {
                 print(cache);
                 Hashtable<String, Object> newCache = new Hashtable<>();
-                Hashtable<String, Object> old = ((Hashtable<String, Object>)cache.get("old"));
-                newCache.put("operand2", old.get("operand2"));
+                newCache.put("operand2", cache.get("operand2"));
                 newCache.put("operator", "==");
                 return newCache;
             }
@@ -134,20 +133,19 @@ public class ElpisParser implements Serializable {
             @Override
             public Object act(Hashtable<String, Object> cache, Symbol arg) {
                 print(cache);
-                Hashtable<String, Object> newCache = new Hashtable<>();
-                newCache.put("old", cache);
-                return newCache;
+                return cache;
             }
         });
         expNode.addRule("number", expOp, new Action() {
             @Override
             public Object act(Hashtable<String, Object> cache, Symbol arg) {
                 print(cache);
+                print(arg);
                 Hashtable<String, Object> newCache = new Hashtable<>();
                 Hashtable<String, Object> exp = new Hashtable<>();
-                Hashtable<String, Object> old = ((Hashtable<String, Object>)cache.get("old"));
-                exp.put("operand2", old.get("operand2"));
-                exp.put("operator", old.get("operator"));
+                exp.put("operand2", cache.get("operand2"));
+                exp.put("operator", cache.get("operator"));
+                print(arg.value);
                 exp.put("operand1", arg.value);
                 newCache.put("exp", exp);
                 return newCache;
@@ -157,19 +155,28 @@ public class ElpisParser implements Serializable {
             @Override
             public Object act(Hashtable<String, Object> cache, Symbol arg) {
                 print(cache);
+                print(arg);
                 Hashtable<String, Object> newCache = new Hashtable<>();
                 newCache.put("operand2", arg.value);
                 return newCache;
             }
         });
         Node ifNode = new Node("if");
+        Node ifNodeInner = new Node("ifInner");
         Node ifBodyNode = new Node("ifBody");
-        ifNode.joinRule(expNode, new Action() {
+        ifNode.addRule("if", ifNodeInner, new Action() {
             @Override
             public Object act(Hashtable<String, Object> cache, Symbol arg) {
-                Hashtable<String, Object> newCache  = new Hashtable<>();
-                newCache.put("condition", cache.get("old"));
-                return newCache;
+                print(cache);
+                return cache;
+            }
+        });
+        ifNodeInner.joinRule(expNode, new Action() {
+            @Override
+            public Object act(Hashtable<String, Object> cache, Symbol arg) {
+                print(cache);
+                print(arg);
+                return cache;
             }
         }, "start", ifBodyNode, new Action() {
             @Override
@@ -178,13 +185,78 @@ public class ElpisParser implements Serializable {
                 print(cache);
                 print("+++++++++");
                 Hashtable<String, Object> newCache  = new Hashtable<>();
-                newCache.put("condition", cache.get("old"));
-                newCache.put("body", cache);
+                newCache.put("condition", cache.get("exp"));
+                newCache.put("body", cache.get("body"));
                 return newCache;
             }
         });
         Node ifBodyEndNode = new Node("ifBodyEndNode");
-        ifBodyNode.joinRule(rootNode, new Action() {
+        Node bodyNode = new Node("body");
+        Node lineNode = new Node("line");
+
+        lineNode.joinRule(expNode, new Action() {
+            @Override
+            public Object act(Hashtable<String, Object> cache, Symbol arg) {
+                print(cache);
+                print("hello");
+                return cache;
+            }
+        }, "$nop", null, new Action() {
+            @Override
+            public Object act(Hashtable<String, Object> cache, Symbol arg) {
+                print(cache);
+                print(arg);
+                return cache;
+            }
+        });
+        lineNode.joinRule(ifNode, new Action() {
+            @Override
+            public Object act(Hashtable<String, Object> cache, Symbol arg) {
+                print(cache);
+                print(arg);
+                return cache;
+            }
+        }, "$nop", null, new Action() {
+            @Override
+            public Object act(Hashtable<String, Object> cache, Symbol arg) {
+                print(cache);
+                print(arg);
+                return cache;
+            }
+        });
+
+        bodyNode.addRule("$nop", null, new Action() {
+            @Override
+            public Object act(Hashtable<String, Object> cache, Symbol arg) {
+                print(cache);
+                Hashtable<String, Object> newCache = new Hashtable<>();
+                newCache.put("old", cache);
+                return newCache;
+            }
+        });
+        bodyNode.joinRule(lineNode, new Action() {
+            @Override
+            public Object act(Hashtable<String, Object> cache, Symbol arg) {
+                print(cache);
+                print(arg);
+                return cache;
+            }
+        }, "newline", bodyNode, new Action() {
+            @Override
+            public Object act(Hashtable<String, Object> cache, Symbol arg) {
+                print(cache);
+                print(arg);
+                Hashtable<String, Object> newCache = new Hashtable<>();
+                ArrayList<Hashtable<String, Object>> body = cache.containsKey("body") ?
+                        (ArrayList<Hashtable<String, Object>>)cache.get("body") :
+                        new ArrayList<>();
+                body.add((Hashtable<String, Object>) cache.get("exp"));
+                newCache.put("body", body);
+                return newCache;
+            }
+        });
+
+        ifBodyNode.joinRule(bodyNode, new Action() {
             @Override
             public Object act(Hashtable<String, Object> cache, Symbol arg) {
                 return cache;
@@ -201,30 +273,7 @@ public class ElpisParser implements Serializable {
                 return cache;
             }
         });
-        rootNode.addRule("newline", rootNode, new Action() {
-            @Override
-            public Object act(Hashtable<String, Object> cache, Symbol arg) {
-                print(cache);
-                Hashtable<String, Object> old = (Hashtable<String, Object>)cache.get("old");
-                Hashtable<String, Object> newCache = new Hashtable<>();
-                ArrayList<Hashtable<String, Object>> body = (ArrayList<Hashtable<String, Object>>)old.get("body");
-                body.add((Hashtable<String, Object>)cache.get("exp"));
-                newCache.put("body", body);
-                return newCache;
-            }
-        });
-        rootNode.addRule("end", rootNode, new Action() {
-            @Override
-            public Object act(Hashtable<String, Object> cache, Symbol arg) {
-                print(cache);
-                Hashtable<String, Object> old = (Hashtable<String, Object>)cache.get("old");
-                Hashtable<String, Object> newCache = new Hashtable<>();
-                ArrayList<Hashtable<String, Object>> body = (ArrayList<Hashtable<String, Object>>)old.get("body");
-                body.add((Hashtable<String, Object>)cache.get("exp"));
-                newCache.put("body", body);
-                return newCache;
-            }
-        });
+
         rootNode.addRule("$nop", null, new Action() {
             @Override
             public Object act(Hashtable<String, Object> cache, Symbol arg) {
@@ -234,30 +283,24 @@ public class ElpisParser implements Serializable {
                 return newCache;
             }
         });
-        rootNode.joinRule(expNode, new Action() {
-            @Override
-            public Object act(Hashtable<String, Object> cache, Symbol arg) {
-                return cache;
-            }
-        }, "$nop", null, new Action() {
-            @Override
-            public Object act(Hashtable<String, Object> cache, Symbol arg) {
-                Hashtable<String, Object> old = (Hashtable<String, Object>) cache.get("old");
-                Hashtable<String, Object> newCache = new Hashtable<>();
-                ArrayList<Hashtable<String, Object>> body = old.containsKey("body") ?
-                        (ArrayList<Hashtable<String, Object>>)old.get("body") :
-                        new ArrayList<>();
-                body.add((Hashtable<String, Object>) old.get("exp"));
-                newCache.put("body", body);
-                return newCache;
-            }
-        });
-        rootNode.addRule("if", ifNode, new Action() {
+        rootNode.joinRule(lineNode, new Action() {
             @Override
             public Object act(Hashtable<String, Object> cache, Symbol arg) {
                 print(cache);
+                print(arg);
+                return cache;
+            }
+        }, "newline", rootNode, new Action() {
+            @Override
+            public Object act(Hashtable<String, Object> cache, Symbol arg) {
+                print(cache);
+                print(arg);
                 Hashtable<String, Object> newCache = new Hashtable<>();
-                newCache.put("old", cache);
+                ArrayList<Hashtable<String, Object>> body = cache.containsKey("body") ?
+                        (ArrayList<Hashtable<String, Object>>)cache.get("body") :
+                        new ArrayList<>();
+                body.add((Hashtable<String, Object>) cache.get("exp"));
+                newCache.put("body", body);
                 return newCache;
             }
         });
@@ -265,8 +308,8 @@ public class ElpisParser implements Serializable {
     }
     boolean error = false;
     boolean matched = false;
-    Stack<Pair<Node, String>> steps = new Stack<>();
-    int iterate(Node node, int index, boolean isExitingRule, Node prevNode) {
+    Stack<Pair<Node, Action[]>> steps = new Stack<>();
+    Hashtable<String, Object> iterate(Node node, int index, boolean isExitingRule, Node prevNode) {
         print("forward " + (node == null ? "null" : node.name) + " " + tokens[index].value + " " + index);
         print("steps: " + this.steps.stream().map(s -> s.a.name).toList());
         Symbol token = tokens[index];
@@ -282,7 +325,7 @@ public class ElpisParser implements Serializable {
                     matched = true;
                 }
             }
-            return 0;
+            return new Hashtable<>();
         }
         if (node == null) {
             if (tokens[index + 1].value == null) {
@@ -296,36 +339,19 @@ public class ElpisParser implements Serializable {
                 }
                 if (foundEnd) {
                     matched = true;
-                    return 0;
+                    return new Hashtable<>();
                 }
             }
         }
         if (history.containsKey(node.name + ":" + index)) {
-            return 0;
+            return new Hashtable<>();
         }
         this.history.put(node.name + ":" + index, new Hashtable<>());
         print(node.nextTable.stream().map(s -> (s.b != null ? s.b.name : "")).toList());
         for (Tuple<String, Node, Boolean, String, Node, Action[]> next : node.nextTable) {
             if (next.c) {
                     print("is c " + next.a);
-                    if (next.a.equals("$nop")) {
-                        if (next.b == null && next.e == null) {
-                            if (tokens[index + 1].value == null) {
-                                boolean foundEnd = false;
-                                print("the last : " + prevNode.name);
-                                for (Tuple<String, Node, Boolean, String, Node, Action[]> n : prevNode.nextTable) {
-                                    if (n.a.equals("end") || n.d.equals("end")) {
-                                        foundEnd = true;
-                                        break;
-                                    }
-                                }
-                                if (foundEnd) {
-                                    matched = true;
-                                    return 0;
-                                }
-                            }
-                        }
-                    } else if (
+                    if (
                             (sym.terminalNames[token.sym].equals("word") && token.value.equals(next.a)) ||
                                     (sym.terminalNames[token.sym].equals("START") && next.a.equals("start")) ||
                                     (sym.terminalNames[token.sym].equals("END") && next.a.equals("end")) ||
@@ -333,12 +359,34 @@ public class ElpisParser implements Serializable {
                     ) {
                         print("comparing in " + next.b.name + " -- [" + token.value + "] , [" + next.a + "]");
                         this.stack.push(next.b);
-                        iterate(next.b, index + 1, false, node);
+                        Hashtable<String, Object> old = iterate(next.b, index + 1, false, node);
                         this.stack.pop();
-                        if (matched || error) return 0;
+                        print("acting: " + node.name + " " + next.b.name + " " + next.a);
+                        if (matched || error) return ((Hashtable<String, Object>) next.f[0].act(old, token));
+                    } else if (next.a.equals("$nop")) {
+                        if (next.b == null && next.e == null) {
+                            if (tokens[index + 1].value == null) {
+                                boolean foundEnd = false;
+                                print("the last : " + prevNode.name);
+                                for (Tuple<String, Node, Boolean, String, Node, Action[]> n : prevNode.nextTable) {
+                                    if (n.a.equals("end") || n.d.equals("end") || n.a.equals("newline") || n.d.equals("newline")) {
+                                        foundEnd = true;
+                                        break;
+                                    }
+                                }
+                                if (foundEnd) {
+                                    matched = true;
+                                    return new Hashtable<>();
+                                } else {
+                                    this.stack.pop();
+                                    this.steps.pop();
+                                    Hashtable<String, Object> old = iterate(this.steps.peek().a, index, true, this.steps.get(this.steps.size() - 2).a);
+                                    return (Hashtable<String, Object>) next.f[0].act(old, token);
+                                }
+                            }
+                        }
                     }
             } else {
-                print(isExitingRule);
                 if (isExitingRule) {
                     if (
                             (sym.terminalNames[token.sym].equals("word") && token.value.equals(next.d)) ||
@@ -346,15 +394,19 @@ public class ElpisParser implements Serializable {
                             (sym.terminalNames[token.sym].equals("END") && next.d.equals("end")) ||
                             sym.terminalNames[token.sym].equals(next.d)
                     ) {
-                        iterate(next.e, index + 1, false, node);
+                        Hashtable<String, Object> old = iterate(next.e, index + 1, false, node);
+                        print("acting: " + node.name + " " + next.e.name + " " + next.d);
+                        if (matched || error) return ((Hashtable<String, Object>) next.f[1].act(old, token));
                     }
                 } else {
                     print("auto-node " + next.b.name + " " + node.name);
-                    this.steps.push(new Pair<>(node, next.d));
+                    int beforeSize = this.steps.size();
+                    this.steps.push(new Pair<>(node, next.f));
                     this.stack.push(next.b);
-                    iterate(next.b, index, false, node);
+                    Hashtable<String, Object> old = iterate(next.b, index, false, node);
                     this.stack.pop();
-                    if (matched || error) return 0;
+                    print("acting: " + node.name + " " + next.b.name + " " + next.a);
+                    if (matched || error) return ((Hashtable<String, Object>) next.f[0].act(old, token));
                 }
             }
         }
@@ -364,7 +416,7 @@ public class ElpisParser implements Serializable {
         String stackNodePlusName = null;
 
         if (!node.hasNop()) {
-            return 0;
+            return new Hashtable<>();
         }
 
         for (int i = this.stack.size() - 1; i >= 0; i--) {
@@ -382,7 +434,7 @@ public class ElpisParser implements Serializable {
         print("printing steps... " + this.steps.stream().map(s -> s.a.name).toList());
 
         for (int i = this.steps.size() - 1; i >= 0; i--) {
-            Pair<Node, String> step = this.steps.get(i);
+            Pair<Node, Action[]> step = this.steps.get(i);
             print("looking at step : " + step.a.name + " | [" + token.value + "] " +
                     Arrays.toString(step.a.nextTable.stream().map(s -> s.d).toArray()) + " " +
                     Arrays.toString(step.a.nextTable.stream().map(s -> s.a).toArray()));
@@ -392,20 +444,25 @@ public class ElpisParser implements Serializable {
                 boolean isSecond = step.a.nextTable.stream().anyMatch(s -> ((!s.c && s.d.equals(token.value))));
                 print(isFirst + " " + isSecond + " " + step.a.name + " " + stackNodeName);
                 if (step.a.name.equals(stackNodePlusName) && (isFirst || isSecond)) {
+                    Hashtable<String, Object> result;
                     if (isFirst) {
-                        Node theNextNode = step.a.nextTable.stream().filter(s -> ((s.c && s.a.equals(token.value)))).findFirst().get().b;
-                        this.stack.push(theNextNode);
-                        iterate(theNextNode, index + 1, false, node);
+                        Tuple<String, Node, Boolean, String, Node, Action[]> theNextNode = step.a.nextTable.stream().filter(s -> ((s.c && s.a.equals(token.value)))).findFirst().get();
+                        this.stack.push(theNextNode.b);
+                        Hashtable<String, Object> old = iterate(theNextNode.b, index + 1,false, node);
                         this.stack.pop();
+                        print("acting: " + node.name + " " + theNextNode.b.name + " " + token.value);
+                        result = ((Hashtable<String, Object>) theNextNode.f[0].act(old, token));
                     } else {
                         this.stack.push(step.a);
-                        iterate(step.a, index + 1, false, node);
+                        Hashtable<String, Object> old = iterate(step.a, index + 1, false, node);
                         this.stack.pop();
+                        print("acting: " + node.name + " " + step.a.name + " " + token.value);
+                        result = ((Hashtable<String, Object>) step.b[0].act(old, token));
                     }
-                    if (matched || error) return 0;
+                    if (matched || error) return result;
                     break;
                 } else {
-                    if (i == 0) return 0;
+                    if (i == 0) return new Hashtable<>();
                     stackNodePlusName = stackNodeName;
                     stackNodeName = this.steps.get(i - 1).a.name;
                 }
@@ -413,13 +470,15 @@ public class ElpisParser implements Serializable {
                 if (step.a.name.equals(stackNodeName) && step.a.nextTable.stream().anyMatch(s -> ((s.c && s.a.equals(token.value)) || (!s.c && s.d.equals(token.value))))) {
                     print("hello 1");
                     this.stack.push(step.a);
-                    iterate(step.a, index + 1, false, node);
+                    Hashtable<String, Object> old = iterate(step.a, index + 1, false, node);
                     this.stack.pop();
-                    if (matched || error) return 0;
+                    print("acting: " + node.name + " " + step.a.name + " " + token.value);
+                    if (matched || error) return ((Hashtable<String, Object>) step.b[0].act(old, token));
                     break;
                 } else {
                     print("hello 2");
                     Node foundNode = null;
+                    int foundType = 0;
                     for (Tuple<String, Node, Boolean, String, Node, Action[]> next : this.steps.get(i).a.nextTable) {
                         print("last chances: " + sym.terminalNames[token.sym] + " d: [" + next.d + "] [" + stackNodeName + "]");
                         if (
@@ -430,6 +489,7 @@ public class ElpisParser implements Serializable {
                         ) {
                             print("ok");
                             if (stackNodeName.equals(next.b.name)) {
+                                foundType = 1;
                                 foundNode = next.e;
                                 break;
                             }
@@ -442,38 +502,48 @@ public class ElpisParser implements Serializable {
                                         sym.terminalNames[token.sym].equals(next.a)
                         ) {
                                 print("ok " + stackNodePlusName + " " + next.b.name);
-                                    foundNode = next.b;
-                                    break;
+                                foundType = 2;
+                                foundNode = next.b;
+                                break;
                         }
                     }
                     if (foundNode != null) {
                         this.stack.push(foundNode);
                         print("foundNode: " + foundNode.name);
-                        iterate(foundNode, index + 1, false, node);
+                        Hashtable<String, Object> old = iterate(foundNode, index + 1, false, node);
                         this.stack.pop();
-                        if (matched || error) return 0;
+                        if (matched || error) {
+                            print("acting: " + node.name + " " + foundNode.name + " " + token.value);
+                            if (foundType == 1) {
+                                return ((Hashtable<String, Object>) step.b[0].act(old, token));
+                            } else {
+                                return ((Hashtable<String, Object>) step.b[1].act(old, token));
+                            }
+                        }
                         break;
                     } else {
                         print("hello 3");
                         this.steps.pop();
                         print("printing steps after pop... " + this.steps.stream().map(s -> s.a.name).toList());
-                        iterate(this.steps.peek().a, index, true, node);
-                        return 1;
+                        Hashtable<String, Object> old = iterate(this.steps.peek().a, index, true, node);
+                        print("acting: " + node.name + " " + this.steps.peek().a.name + " " + token.value);
+                        return ((Hashtable<String, Object>) this.steps.peek().b[1].act(old, token));
                     }
                 }
             }
         }
         print("............................");
-        return 0;
+        return new Hashtable<>();
     }
     public void parse() {
 
         Node current = this.tree;
-        this.steps.push(new Pair<>(current, "newline"));
+        this.steps.push(new Pair<>(current, new Action[]{}));
         this.stack.push(current);
-        iterate(current, 0, false, null);
+        Hashtable<String, Object> ast = iterate(current, 0, false, null);
         if (matched) {
             print("success !");
+            print(ast);
         } else {
             print("failure.");
         }
